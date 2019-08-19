@@ -15,10 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hpcloud/tail/ratelimiter"
-	"github.com/hpcloud/tail/util"
-	"github.com/hpcloud/tail/watch"
 	"gopkg.in/tomb.v1"
+
+	"github.com/forking-projects/tail/ratelimiter"
+	"github.com/forking-projects/tail/util"
+	"github.com/forking-projects/tail/watch"
 )
 
 var (
@@ -191,16 +192,16 @@ func (tail *Tail) reopen() error {
 		tail.file, err = OpenFile(tail.Filename)
 		if err != nil {
 			if os.IsNotExist(err) {
-				tail.Logger.Printf("Waiting for %s to appear...", tail.Filename)
+				tail.Logger.Printf("waiting for %s to appear...", tail.Filename)
 				if err := tail.watcher.BlockUntilExists(&tail.Tomb); err != nil {
 					if err == tomb.ErrDying {
 						return err
 					}
-					return fmt.Errorf("Failed to detect creation of %s: %s", tail.Filename, err)
+					return fmt.Errorf("failed to detect creation of %s: %s", tail.Filename, err)
 				}
 				continue
 			}
-			return fmt.Errorf("Unable to open file %s: %s", tail.Filename, err)
+			return fmt.Errorf("unable to open file %s: %s", tail.Filename, err)
 		}
 		break
 	}
@@ -241,9 +242,9 @@ func (tail *Tail) tailFileSync() {
 	// Seek to requested location on first open of the file.
 	if tail.Location != nil {
 		_, err := tail.file.Seek(tail.Location.Offset, tail.Location.Whence)
-		tail.Logger.Printf("Seeked %s - %+v\n", tail.Filename, tail.Location)
+		tail.Logger.Printf("seek %s - %+v\n", tail.Filename, tail.Location)
 		if err != nil {
-			tail.Killf("Seek error on %s: %s", tail.Filename, err)
+			tail.Killf("seek error on %s: %s", tail.Filename, err)
 			return
 		}
 	}
@@ -273,8 +274,7 @@ func (tail *Tail) tailFileSync() {
 			if cooloff {
 				// Wait a second before seeking till the end of
 				// file when rate limit is reached.
-				msg := ("Too much log activity; waiting a second " +
-					"before resuming tailing")
+				msg := "too much log activity; waiting a second before resuming tailing"
 				tail.Lines <- &Line{msg, time.Now(), errors.New(msg)}
 				select {
 				case <-time.After(time.Second):
@@ -316,7 +316,7 @@ func (tail *Tail) tailFileSync() {
 			}
 		} else {
 			// non-EOF error
-			tail.Killf("Error reading %s: %s", tail.Filename, err)
+			tail.Killf("error reading %s: %s", tail.Filename, err)
 			return
 		}
 
@@ -353,26 +353,30 @@ func (tail *Tail) waitForChanges() error {
 		tail.changes = nil
 		if tail.ReOpen {
 			// XXX: we must not log from a library.
-			tail.Logger.Printf("Re-opening moved/deleted file %s ...", tail.Filename)
+			tail.Logger.Printf("re-opening moved/deleted file %s ...", tail.Filename)
 			if err := tail.reopen(); err != nil {
 				return err
 			}
-			tail.Logger.Printf("Successfully reopened %s", tail.Filename)
+			tail.Logger.Printf("successfully reopened %s", tail.Filename)
 			tail.openReader()
 			return nil
 		} else {
-			tail.Logger.Printf("Stopping tail as file no longer exists: %s", tail.Filename)
+			tail.Logger.Printf("stopping tail as file no longer exists: %s", tail.Filename)
 			return ErrStop
 		}
 	case <-tail.changes.Truncated:
-		// Always reopen truncated files (Follow is true)
-		tail.Logger.Printf("Re-opening truncated file %s ...", tail.Filename)
-		if err := tail.reopen(); err != nil {
-			return err
+		if tail.ReOpen {
+			tail.Logger.Printf("re-opening truncated file %s ...", tail.Filename)
+			if err := tail.reopen(); err != nil {
+				return err
+			}
+			tail.Logger.Printf("successfully reopened truncated %s", tail.Filename)
+			tail.openReader()
+			return nil
+		} else {
+			tail.Logger.Printf("stopping tail as file is truncated: %s", tail.Filename)
+			return ErrStop
 		}
-		tail.Logger.Printf("Successfully reopened truncated %s", tail.Filename)
-		tail.openReader()
-		return nil
 	case <-tail.Dying():
 		return ErrStop
 	}
@@ -395,7 +399,7 @@ func (tail *Tail) seekEnd() error {
 func (tail *Tail) seekTo(pos SeekInfo) error {
 	_, err := tail.file.Seek(pos.Offset, pos.Whence)
 	if err != nil {
-		return fmt.Errorf("Seek error on %s: %s", tail.Filename, err)
+		return fmt.Errorf("seek error on %s: %s", tail.Filename, err)
 	}
 	// Reset the read buffer whenever the file is re-seek'ed
 	tail.reader.Reset(tail.file)
