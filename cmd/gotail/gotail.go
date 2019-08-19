@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/forking-projects/tail"
+	"io"
 )
 
 func args2config() (tail.Config, int64) {
@@ -24,6 +25,9 @@ func args2config() (tail.Config, int64) {
 	if config.ReOpen {
 		config.Follow = true
 	}
+	if config.Follow {
+		config.ReOpenTruncated = true
+	}
 	config.MaxLineSize = maxlinesize
 	return config, n
 }
@@ -36,7 +40,7 @@ func main() {
 	}
 
 	if n != 0 {
-		config.Location = &tail.SeekInfo{-n, os.SEEK_END}
+		config.Location = &tail.SeekInfo{-n, io.SeekEnd}
 	}
 
 	done := make(chan bool)

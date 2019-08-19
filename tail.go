@@ -40,7 +40,7 @@ func NewLine(text string) *Line {
 // SeekInfo represents arguments to `os.Seek`
 type SeekInfo struct {
 	Offset int64
-	Whence int // os.SEEK_*
+	Whence int // io.Seek_*
 }
 
 type logger interface {
@@ -58,12 +58,13 @@ type logger interface {
 // Config is used to specify how a file must be tailed.
 type Config struct {
 	// File-specifc
-	Location    *SeekInfo // Seek to this location before tailing
-	ReOpen      bool      // Reopen recreated files (tail -F)
-	MustExist   bool      // Fail early if the file does not exist
-	Poll        bool      // Poll for file changes instead of using inotify
-	Pipe        bool      // Is a named pipe (mkfifo)
-	RateLimiter *ratelimiter.LeakyBucket
+	Location        *SeekInfo // Seek to this location before tailing
+	ReOpen          bool      // Reopen recreated files (tail -F)
+	ReOpenTruncated bool      // Reopen truncated files (tail -F)
+	MustExist       bool      // Fail early if the file does not exist
+	Poll            bool      // Poll for file changes instead of using inotify
+	Pipe            bool      // Is a named pipe (mkfifo)
+	RateLimiter     *ratelimiter.LeakyBucket
 
 	// Generic IO
 	Follow      bool // Continue looking for new lines (tail -f)
@@ -93,6 +94,7 @@ type Tail struct {
 var (
 	// DefaultLogger is used when Config.Logger == nil
 	DefaultLogger = log.New(os.Stderr, "", log.LstdFlags)
+
 	// DiscardingLogger can be used to disable logging output
 	DiscardingLogger = log.New(ioutil.Discard, "", 0)
 )
@@ -102,8 +104,8 @@ var (
 // invoke the `Wait` or `Err` method after finishing reading from the
 // `Lines` channel.
 func TailFile(filename string, config Config) (*Tail, error) {
-	if config.ReOpen && !config.Follow {
-		util.Fatal("cannot set ReOpen without Follow.")
+	if (config.ReOpen || config.ReOpenTruncated) && !config.Follow {
+		util.Fatal("cannot set ReOpen or ReOpenTruncated without Follow.")
 	}
 
 	t := &Tail{
@@ -144,7 +146,7 @@ func (tail *Tail) Tell() (offset int64, err error) {
 	if tail.file == nil {
 		return
 	}
-	offset, err = tail.file.Seek(0, os.SEEK_CUR)
+	offset, err = tail.file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return
 	}
@@ -197,7 +199,7 @@ func (tail *Tail) reopen() error {
 					if err == tomb.ErrDying {
 						return err
 					}
-					return fmt.Errorf("failed to detect creation of %s: %s", tail.Filename, err)
+					return fmt.Errorf("wailed to detect creation of %s: %s", tail.Filename, err)
 				}
 				continue
 			}
@@ -336,7 +338,7 @@ func (tail *Tail) tailFileSync() {
 // reopened if ReOpen is true. Truncated files are always reopened.
 func (tail *Tail) waitForChanges() error {
 	if tail.changes == nil {
-		pos, err := tail.file.Seek(0, os.SEEK_CUR)
+		pos, err := tail.file.Seek(0, io.SeekCurrent)
 		if err != nil {
 			return err
 		}
@@ -365,7 +367,7 @@ func (tail *Tail) waitForChanges() error {
 			return ErrStop
 		}
 	case <-tail.changes.Truncated:
-		if tail.ReOpen {
+		if tail.ReOpenTruncated {
 			tail.Logger.Printf("re-opening truncated file %s ...", tail.Filename)
 			if err := tail.reopen(); err != nil {
 				return err
@@ -393,7 +395,7 @@ func (tail *Tail) openReader() {
 }
 
 func (tail *Tail) seekEnd() error {
-	return tail.seekTo(SeekInfo{Offset: 0, Whence: os.SEEK_END})
+	return tail.seekTo(SeekInfo{Offset: 0, Whence: io.SeekEnd})
 }
 
 func (tail *Tail) seekTo(pos SeekInfo) error {
