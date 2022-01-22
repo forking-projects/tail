@@ -8,6 +8,7 @@ package tail
 
 import (
 	_ "fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -16,13 +17,11 @@ import (
 
 	"github.com/forking-projects/tail/ratelimiter"
 	"github.com/forking-projects/tail/watch"
-	"io"
 )
 
 func init() {
 	// Clear the temporary test directory
-	err := os.RemoveAll(".test")
-	if err != nil {
+	if err := os.RemoveAll(".test"); err != nil {
 		panic(err)
 	}
 }

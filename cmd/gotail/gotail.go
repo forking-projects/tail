@@ -6,10 +6,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/forking-projects/tail"
-	"io"
 )
 
 func args2config() (tail.Config, int64) {

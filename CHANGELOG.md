@@ -1,5 +1,15 @@
 # API v1 (gopkg.in/forking-projects/tail.v1)
 
+## January, 2022
+
+* Use go modules
+* Remove travis.ci
+* Change logging to debug level
+
+## August 2019
+* Change imports, add reopen check if truncated
+* Change os.SEEK_ to io.Seek, add ReOpenTruncated
+
 ## April, 2016
 
 * Migrated to godep, as depman is not longer supported

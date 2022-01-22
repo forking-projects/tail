@@ -10,9 +10,8 @@ import (
 	"sync"
 	"syscall"
 
-	"gopkg.in/fsnotify/fsnotify.v1"
-
 	"github.com/forking-projects/tail/util"
+	"github.com/fsnotify/fsnotify"
 )
 
 type InotifyTracker struct {
